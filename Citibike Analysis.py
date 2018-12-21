@@ -24,7 +24,6 @@ my_stations = ["E 11 St & 1 Ave"  # station 326
 
 
 def citibike_update(my_stations_):
-    # is there a global variable? how does it know to print to the next lines?
     d_ = {'name': [], 'docks': [], 'bikes': [], 'time': []}
     for station in data["stationBeanList"]:
         if station["stationName"] in my_stations_:
