@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from phue import Bridge
 import time
-import sys
+
 
 # define global inputs variables
 # room variables
@@ -32,28 +32,27 @@ def citibike_update(my_stations_):
             d_['bikes'].append(int(station['availableBikes']))
             d_['time'].append(datetime.strptime(str(data["executionTime"]), "%Y-%m-%d\
      %I:%M:%S %p"))
-
     return d_
 
 
 def get_current_light_status(b_, d_):
+    # try here will make sure that the station status is still populated even if you are not home/connected
     try:
         lights_ = b_.lights
     except BaseException:
         time.sleep(.1)
         extract_station_value(d_)
         exit()
+
     light_dictionary_ = {'name': [], 'hue': [], 'brightness': [], 'saturation': [], 'on': []}
     list_keys_ = list(light_dictionary_)
 
-    # gets current status of system
+    # goes through each light in system, extracting the value that corresponds to the key in light_dictionary.
+    # Gets full attributes per light before moving to the next
     for l in range(len(lights_)):
-        # if lights['name'][l] == 'Kitchen 1':
-        # value we want to print is controlled by the key of light_d
         for k in range(len(list_keys_)):
             # 1st light, looping through all the attributes
             value = getattr(lights_[l], list_keys_[k])
-            # print(lights[l].name, list_keys[k], value)
             light_dictionary_[list_keys_[k]].append(value)
 
     return light_dictionary_, list_keys_, lights_
@@ -63,30 +62,30 @@ def update_lights(lights_, light_bike_map_, d__):
     for n in lights_:
         try:
             station_x = light_bike_map_[n.name]
+            light_name = n.name
             for i in range(len(d__['name'])):
                 if d__['name'][i] == station_x:
-                    # sends the number of bikes, docks, and name of light
-                    change_light_color(d['bikes'][i], n.name)  # ~~~~~~this changes color
-        except:
+                    # sends the number of bikes and name of light
+                    change_light_color(d['bikes'][i], light_name)  # ~~~~~~this changes color
+        except:  # this will leave out any lights that are unplugged- aka kitchen
             print(n.name, 'this light is off')
-        pass  # this will leave out any lights that are unplugged- aka ktichen
+        pass
 
 
 def change_light_color(bikes, light_name):
-    lights_on_bright(light_name)  # turns on light that you want to use
+    lights_on_bright(light_name)  # function that makes sure the light is turned on, and bri/sat are to 254
     if bikes >= 10:
         # print('green')
         b.set_light(light_name, 'hue', 20000)
-    if bikes < 10 and bikes > 3:
+    if 10 > bikes > 3:
         # print('blue')
         b.set_light(light_name, 'hue', 46014)
-    if bikes <= 3 and bikes >= 1:
+    if 3 >= bikes >= 1:
         # print('red')
         b.set_light(light_name, 'hue', 64382)
     if bikes == 0:
         # print('purple')
         b.set_light(light_name, 'hue', 50000)
-
     time.sleep(.1)
 
 
@@ -97,31 +96,36 @@ def lights_on_bright(light_name):
 
 
 def return_light_state(light_dictionary_, list_keys_, light_bike_map_):
-    # outer loop... for each light
+    # outer loop... for each light in light map
     list_keys_light_bike_map = light_bike_map_.keys()
     for i in range(len(light_dictionary_['name'])):
         light_name = (light_dictionary_['name'][i])
         # inner loop- for each attribute
         for a in range(len(list_keys_[1:])):
-            light_attibute = list_keys_[a + 1]
-            light_value = light_dictionary_[light_attibute][i]
-            if light_attibute == 'brightness' or light_attibute == 'saturation':
-                light_attibute = light_attibute[:3]
-            # print(light_name, light_attibute, light_value)
+            light_attribute = list_keys_[a + 1]
+            light_value = light_dictionary_[light_attribute][i]
+            # for some reason you get the attribute with saturation and brightness, but it only updates if its bri/sat- cuts it down to first 3
+            if light_attribute == 'brightness' or light_attribute == 'saturation':
+                light_attribute = light_attribute[:3]
+
+            # only run through the lights that that are mapped (skips kitchen)
             if light_name in list_keys_light_bike_map:
-                b.set_light(light_name, light_attibute, light_value)
+                # sets light attributes back
+                b.set_light(light_name, light_attribute, light_value)
             else:
                 pass
+        # puts time in between updating- too fast and some will get skipped
         time.sleep(.1)
     print('lights to normal')
 
 
 def extract_station_value(d__):
+    # using mapped stations, print bikes left
     station_status_bikes = d__['bikes']
     station_status_name = d__['name']
     print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    for b__ in range(len(station_status_name)):
-        print(station_status_name[b__] + ':', ' bikes left-', station_status_bikes[b__]),
+    for a in range(len(station_status_name)):
+        print(station_status_name[a] + ':', ' bikes left-', station_status_bikes[a]),
         print('')
     print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
@@ -129,17 +133,15 @@ def extract_station_value(d__):
 #############################################
 # always get station information
 d = citibike_update(my_stations)
+b = Bridge('192.168.1.2')
 
+# wrap this so it times out and produces bikes if not in range
 try:
-    b = Bridge('192.168.1.2')
     b.connect()
-
 
 except TimeoutError:
     extract_station_value(d)
     exit()
-
-
 
 # get the current light status in a dictionary, the list_keys of dictionary, and map of the lights
 light_dictionary, list_keys, lights = get_current_light_status(b, d)
@@ -152,8 +154,7 @@ time.sleep(3)
 # return light_states
 return_light_state(light_dictionary, list_keys, light_bike_map)
 
-    # should wirte something that checks if lights are still on... but maybe thats just calling it again?
-
+# should write something that checks if lights are still on... but maybe thats just calling it again?
 
 # print station station
 extract_station_value(d)
