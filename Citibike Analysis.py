@@ -159,15 +159,3 @@ return_light_state(light_dictionary, list_keys, light_bike_map)
 # print station station
 extract_station_value(d)
 
-# #what does this mean?
-# df = pd.DataFrame(d)
-# f = "citibikedata.csv"
-#
-# print(df)
-# df.to_csv(f, mode='a', header=True)
-
-#
-# if os.path.isfile(f)==True:
-#     df.to_csv(f,mode="a",header=False)
-# else:
-#     df.to_csv(f,mode="w",header=True)
